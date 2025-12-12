@@ -17,9 +17,6 @@ public class BloomFilterConfig {
     @Resource
     private RedissonClient redissonClient;
 
-    @Resource
-    private IShopService shopService;
-
     /**
      * 定义一个 Bean，方便在 Service 中注入使用
      */
@@ -37,20 +34,4 @@ public class BloomFilterConfig {
         return bloomFilter;
     }
 
-    /**
-     * 系统启动时进行预热：将数据库中现有的 ID 全部加入布隆过滤器
-     * 也可以实现 CommandLineRunner 接口来做这一步
-     */
-    @PostConstruct
-    public void initData() {
-        RBloomFilter<Long> bloomFilter = shopBloomFilter();
-
-        // 为了演示简单，这里查询了所有数据。实际生产中如果数据量大，应该分批查询 ID
-        List<Shop> list = shopService.list();
-        for (Shop shop : list) {
-            // 将 ID 加入布隆过滤器
-            bloomFilter.add(shop.getId());
-        }
-        System.out.println("布隆过滤器预热完成，当前包含元素数量：" + bloomFilter.count());
-    }
 }

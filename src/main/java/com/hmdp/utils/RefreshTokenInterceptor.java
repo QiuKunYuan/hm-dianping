@@ -53,9 +53,9 @@ public class RefreshTokenInterceptor implements HandlerInterceptor {
 
         //1.获取请求头中1的token
         String token = request.getHeader("authorization");
-        log.info("token:{}",token);
+        //log.info("token:{}",token);
         if (StrUtil.isBlank(token)) {
-            log.info("没有token");
+          //  log.info("没有token");
             return true;
         }
         // 2.基于token获取redis中的用户
@@ -64,7 +64,7 @@ public class RefreshTokenInterceptor implements HandlerInterceptor {
 
         //3.判断用户是否存在
         if (userMap.isEmpty()){
-            log.info("token无效");
+           // log.info("token无效");
             return true;
         }
         //5查询到的Hash数据转为UserDTO对象
