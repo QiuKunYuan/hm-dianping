@@ -8,10 +8,12 @@ import com.hmdp.service.ISeckillVoucherService;
 import com.hmdp.service.IVoucherOrderService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.utils.RedisIdWorker;
+import com.hmdp.utils.SimpleRedisLock;
 import com.hmdp.utils.UserHolder;
 import jakarta.annotation.Resource;
 import lombok.val;
 import org.springframework.aop.framework.AopContext;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,7 +37,8 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     @Resource
     private RedisIdWorker redisIdWorker;
 
-
+    @Resource
+    private StringRedisTemplate stringRedisTemplate;
     @Override
 
     public Result seckillVoucher(Long voucherId) {
@@ -65,11 +68,34 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         Long userId = UserHolder.getUser().getId();
         //等我事务提交完然后再去释放锁
         //intern是入池
-        synchronized(userId.toString().intern()) {
-            //获取当前事务的代理对象 使得我们的事务生效。如果不经过代理，createVoucherOrder 上的 @Transactional 注解就会失效（
-            IVoucherOrderService proxy = (IVoucherOrderService) AopContext.currentProxy();
-            return proxy.createVoucherOrder(voucherId);
+//        synchronized(userId.toString().intern()) {
+//            //获取当前事务的代理对象 使得我们的事务生效。如果不经过代理，createVoucherOrder 上的 @Transactional 注解就会失效（
+//            IVoucherOrderService proxy = (IVoucherOrderService) AopContext.currentProxy();
+//            return proxy.createVoucherOrder(voucherId);
+//        }
+
+        //尝试获取锁对象
+        SimpleRedisLock lock = new SimpleRedisLock(stringRedisTemplate, "order:" + userId);
+
+        boolean isLock = lock.tryLock(60);
+
+        //判断是否获取锁成功
+        if(!isLock){
+            //失败 返回错误信息 或者重试
+            return Result.fail("一个人只允许一单");
+
         }
+        //获取当前事务的代理对象 使得我们的事务生效。如果不经过代理，createVoucherOrder 上的 @Transactional 注解就会失效（
+            try{
+                IVoucherOrderService proxy = (IVoucherOrderService) AopContext.currentProxy();
+            return proxy.createVoucherOrder(voucherId);
+            }
+                finally{
+                //释放锁
+                lock.unlock();
+
+            }
+
     }
 
     @Transactional
@@ -86,7 +112,7 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
             return Result.fail("用户已经购买过一次了");
         }
 
-        //5.扣减库存
+        //5.扣减库存 使用乐观锁CAS
         boolean success =seckillVoucherService.update().setSql("stock = stock -1")
                 .eq("voucher_id", voucherId).gt("stock",0).update();
 
