@@ -19,6 +19,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.hmdp.utils.RedisConstants.FEED_KEY;
+import static com.hmdp.utils.RedisConstants.FOLLOW_KEY;
 
 /**
  * <p>
@@ -43,7 +44,7 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
     public Result follow(Long followUserId, Boolean isFollow) {
         //获取当前用户
         Long userId = UserHolder.getUser().getId();
-        String key = FEED_KEY+ userId;
+        String key = FOLLOW_KEY+ userId;
 
         //1.判断是关注还是取关
         if(isFollow){  //2.关注新增
@@ -83,9 +84,9 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
     @Override
     public Result followCommons(Long id) {
         Long userId = UserHolder.getUser().getId();
-        String key = FEED_KEY+ userId;
+        String key = FOLLOW_KEY+ userId;
         //求交集
-        String key2 = FEED_KEY+ id;
+        String key2 = FOLLOW_KEY+ id;
         Set<String> intersect = stringRedisTemplate.opsForSet().intersect(key,key2);
         if(intersect.isEmpty()||intersect==null){
             return Result.ok(Collections.emptyList());

@@ -90,5 +90,12 @@ public class UserController {
 
         return userService.queryUserById(userId);
     }
-
+    @PostMapping("/sign")
+    public Result sign(){
+        return userService.sign();
+    }
+    @PostMapping("/sign/count")
+    public Result signCount(){
+        return userService.signCount();
+    }
 }
